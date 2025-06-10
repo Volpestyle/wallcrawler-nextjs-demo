@@ -19,25 +19,7 @@ export default function Home() {
     setResults(null);
     setError(null);
 
-    // Simulate progress messages
-    const progressMessages = [
-      "Launching browser...",
-      "Navigating to eBay...",
-      `Searching for "${searchQuery}"...`,
-      "Extracting search results...",
-      "Clicking on the first product...",
-      "Extracting product details...",
-      "Attempting to add product to cart...",
-      "Demo completed!"
-    ];
-
     try {
-      // Show progress messages
-      for (let i = 0; i < 3; i++) {
-        setProgress(prev => [...prev, progressMessages[i]]);
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-
       const response = await fetch("/api/demo", {
         method: "POST",
         headers: {
@@ -46,23 +28,46 @@ export default function Home() {
         body: JSON.stringify({ searchQuery }),
       });
 
-      // Show remaining progress messages while waiting
-      const responsePromise = response.json();
-      for (let i = 3; i < progressMessages.length - 1; i++) {
-        setProgress(prev => [...prev, progressMessages[i]]);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-
-      const data = await responsePromise;
-
       if (!response.ok) {
-        throw new Error(data.error || "Demo failed");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Demo failed");
       }
 
-      setProgress(prev => [...prev, progressMessages[progressMessages.length - 1]]);
-      setResults(data);
+      // Read the stream
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error("No response body");
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+        
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n').filter(line => line.trim());
+        
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line);
+            
+            if (data.type === 'progress') {
+              setProgress(prev => [...prev, data.message]);
+            } else if (data.type === 'result') {
+              setResults(data.data);
+            } else if (data.type === 'error') {
+              throw new Error(data.error);
+            }
+          } catch (e) {
+            console.error('Error parsing stream data:', e);
+          }
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
+      setProgress(prev => [...prev, `Error: ${err instanceof Error ? err.message : "Unknown error"}`]);
     } finally {
       setIsRunning(false);
     }

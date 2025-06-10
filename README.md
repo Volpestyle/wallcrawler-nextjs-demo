@@ -10,6 +10,8 @@ This demo shows how WallCrawler can:
 - 🖱️ Click elements and navigate pages
 - 🛒 Add items to cart
 - 🤖 Use multiple LLM providers (OpenAI, Anthropic)
+- 📡 Real-time progress updates as actions execute
+- 👀 Visual browser automation (can run with browser visible)
 
 ## Prerequisites
 
@@ -44,6 +46,12 @@ LLM_PROVIDER=openai
 # OR for Anthropic
 ANTHROPIC_API_KEY=your-api-key-here
 LLM_PROVIDER=anthropic
+
+# To see the browser in action (local development)
+DEMO_HEADLESS=false
+
+# For deployment/CI (runs without visible browser)
+DEMO_HEADLESS=true
 ```
 
 4. Run the development server:

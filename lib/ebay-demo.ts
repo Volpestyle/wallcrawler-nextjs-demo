@@ -76,7 +76,7 @@ export async function runEbayDemo(
         : process.env.OPENAI_API_KEY,
     },
     browser: {
-      headless: true, // Run in headless mode for demo
+      headless: process.env.DEMO_HEADLESS === 'true', // Control via env var
       viewport: { width: 1920, height: 1080 },
       timeout: 30000,
     },

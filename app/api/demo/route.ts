@@ -23,21 +23,42 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Run the demo with progress tracking
-    const progressMessages: string[] = [];
-    const result = await runEbayDemo(searchQuery, (message) => {
-      progressMessages.push(message);
-      console.log(message);
+    // Create a stream for real-time progress
+    const encoder = new TextEncoder();
+    const stream = new TransformStream();
+    const writer = stream.writable.getWriter();
+    
+    // Run the demo in the background
+    (async () => {
+      try {
+        const result = await runEbayDemo(searchQuery, async (message) => {
+          // Send progress update
+          const progressData = JSON.stringify({ type: 'progress', message }) + '\n';
+          await writer.write(encoder.encode(progressData));
+        });
+        
+        // Send final result
+        const resultData = JSON.stringify({ type: 'result', data: result }) + '\n';
+        await writer.write(encoder.encode(resultData));
+      } catch (error) {
+        const errorData = JSON.stringify({ 
+          type: 'error', 
+          error: error instanceof Error ? error.message : 'Unknown error' 
+        }) + '\n';
+        await writer.write(encoder.encode(errorData));
+      } finally {
+        await writer.close();
+      }
+    })();
+    
+    // Return the stream
+    return new Response(stream.readable, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
     });
-    
-    if (result.error) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: 500 }
-      );
-    }
-    
-    return NextResponse.json(result);
     
   } catch (error) {
     console.error('API error:', error);
